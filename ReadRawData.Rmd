@@ -6,6 +6,150 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+library(tidyverse)
+library("stringr") # string tools
+library("readxl") # read excel files
+library("lettercase") # fiddle with letter case
+library("lubridate") # handle dates
+library(RCurl)
+
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r read pollen data}
+
+path <- "https://www.houstontx.gov/health/Pollen-Mold/Pollen_Archives/"
+
+#   Read in files using month names
+
+#   Build a list of valid url's
+
+url_list <- tribble(~url)
+
+for (yr in as.character(2013:2019)) {
+  for (mon in tolower(month.name)) {
+    if (yr=="2013" & mon=="february") {mon <- "febraury"}
+    url <- paste0(mon, "_", yr, "_pollen.xls")
+    if (yr=="2018" | yr=="2019" |
+        (yr=="2017"&(mon=="november"|mon=="december"))) {
+          url <- paste0(mon, "_", yr, "_pollen.xlsx")
+    }
+    if(yr=="2018" & mon=="june") {url <- paste0(mon, "_", yr, "_pollen.xls")} 
+    if(yr=="2018" & mon=="march") {next} # bad file lurking out there
+    if (!url.exists(paste0(path,url))) {print(paste(url, "does not exist"))
+                            next}
+    #   add to url_list
+    url_list <- add_row(url_list, url=url)
+  }
+}
+
+#   Read in files using numeric months
+
+for (yr in as.character(2013:2019)) {
+  for (mon in sprintf("%02d", 1:12)) {
+    url <- paste0(yr, mon, "-pollen-count.xls")
+    if (grepl("201902", url)) {url <- paste0(url, "x")}
+    if (!url.exists(paste0(path,url))) {print(paste(url, "does not exist"))
+                            next}
+    #   add to url_list
+    url_list <- add_row(url_list, url=url)
+  }
+}
+
+####################################
+# now let's read the files and save
+####################################
+
+#   First read the urls into local files
+
+for (url in url_list[,1]){
+  download.file(paste0(path, url), destfile=url, mode="wb")
+}
+
+df <- tribble()
+for (url in url_list$url){
+  print(url)
+  fileout <- paste0(url,".rds")
+  df2 <- read_excel(url)  
+  saveRDS(df2, fileout)
+  #df <- bind_rows(df, df2)
+}
+
+```
+
+##    Serious cleanup time
+
+```{r cleanup and consolidate}
+
+keep <- url_list
+
+#   Add year and mon columns to url_list for later creating date objects
+
+url_list$year <- str_extract(url_list$url, "20\\d\\d")
+
+monlist <- tribble(~numeric, 1,2,3,4,5,6,7,8,9,10,11,12) %>% 
+  mutate(name=tolower(month.name[numeric]))
+url_list$month <- NA
+
+for (i in 1:nrow(url_list)) {
+  datepart <- str_extract(url_list$url[i], "^[a-z0-9]+")
+  print(datepart)
+  if (grepl("[a-z]+",datepart)){
+    url_list$month[i] <- sprintf("%02d",grep(datepart, monlist$name))
+  } else {
+    url_list$month[i] <- str_sub(datepart, start=5L, end=6L)
+  }
+}
+
+#   Trim extraneous stuff and rename columns
+
+columns <- c("Date", "Ash", "Ashe_JuniperOrBald_Cypress", "Black_Gum", 
+               "Black_Walnut", "Bushes", "Birch", "Cotton_Wood",
+               "Dogwood", "Elm",  "Glandular_Mesquite", "Hackberry", 
+               "Hickory", "Mulberry",  "Maple", "Osage_Orange", 
+               "Oak", "Sycamore",  "Pine", "Privet", 
+               "Sweet_Gum", "Gingko_Biloba",  "Magnolia", "Willow", 
+                "Amaranth", 
+       "BurweedOrMarshelder", "Cattail",  "Dog_Fennel", "Lambs_Quarters", 
+              "Partridge_Pea", "Pigweed",  "Plum_Grannet", "Ragweed", 
+                      "Rumex", "Sagebrush",  "Saltbrush", "Sedge", 
+                 "Sneezeweed", "Wild_Carrot" )
+
+#for (i in 1:nrow(url_list)){
+for (i in 1:12){
+  url <- url_list$url[i]
+  print(url)
+  filein <- paste0(url,".rds")
+  df <- readRDS(filein) %>% 
+    head(-1) %>% 
+    tail(-3)  
+  assign(paste0("df", i), df) # make dataframes for each file to see what's happening
+  
+  #   Column names change. Let's look closer
+  
+  
+  
+  
+  #  Trim out some extraneous stuff and rename columns
+  
+  df <- df[1:(length(df)-3)] 
+  df <- df[-c(25:27)]
+  names(df) <- columns
+  df <- tail(df, -1)
+  
+  #   make date column a date
+  
+  df <- df %>% 
+    mutate(Date=sprintf("%02d", as.numeric(Date))) %>% 
+    mutate(Date=ymd(paste0(url_list$year[i], url_list$month[1], Date))) 
+  
+  #saveRDS(df, filein)
+}
+
+
+
 ```
 
