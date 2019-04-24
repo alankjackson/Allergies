@@ -73,9 +73,8 @@ df <- tribble()
 for (url in url_list$url){
   print(url)
   fileout <- paste0(url,".rds")
-  df2 <- read_excel(url)  
+  df2 <- read_excel(url, col_names=FALSE)  
   saveRDS(df2, fileout)
-  #df <- bind_rows(df, df2)
 }
 
 ```
@@ -86,68 +85,56 @@ for (url in url_list$url){
 
 keep <- url_list
 
-#   Add year and mon columns to url_list for later creating date objects
+clean = function(data) {
 
-url_list$year <- str_extract(url_list$url, "20\\d\\d")
+  # Recode column names
+  names.row = grep("DATE", df1[, 1, drop=TRUE])
+  recode_vals = translate$to %>% set_names(translate$from)
+  old_names = unlist(df1[names.row, ][-1]) 
+  names(data) = c("Date", recode(old_names, !!!recode_vals))
+  
+  # Get Month and Year for dates
+  mon <- str_remove(data[1,]$Date, "Month:\\s*")
+  mon <- match(mon, toupper(month.name))
+  yr  <- str_remove(data[2,]$Date, "YEAR:\\s*")
 
-monlist <- tribble(~numeric, 1,2,3,4,5,6,7,8,9,10,11,12) %>% 
-  mutate(name=tolower(month.name[numeric]))
-url_list$month <- NA
-
-for (i in 1:nrow(url_list)) {
-  datepart <- str_extract(url_list$url[i], "^[a-z0-9]+")
-  print(datepart)
-  if (grepl("[a-z]+",datepart)){
-    url_list$month[i] <- sprintf("%02d",grep(datepart, monlist$name))
-  } else {
-    url_list$month[i] <- str_sub(datepart, start=5L, end=6L)
-  }
+  # Remove Month, Year, Date and Total rows
+  data = data[!grepl("Month|YEAR|DATE|Total", data$Date), ]
+  
+  # Change Date column to correct dates
+  data$Date = paste(yr, mon, data$Date, sep="-")
+  data$Date = lubridate::ymd(data$Date)
+  
+  data
 }
 
-#   Trim extraneous stuff and rename columns
 
-columns <- c("Date", "Ash", "Ashe_JuniperOrBald_Cypress", "Black_Gum", 
-               "Black_Walnut", "Bushes", "Birch", "Cotton_Wood",
-               "Dogwood", "Elm",  "Glandular_Mesquite", "Hackberry", 
-               "Hickory", "Mulberry",  "Maple", "Osage_Orange", 
-               "Oak", "Sycamore",  "Pine", "Privet", 
-               "Sweet_Gum", "Gingko_Biloba",  "Magnolia", "Willow", 
-                "Amaranth", 
-       "BurweedOrMarshelder", "Cattail",  "Dog_Fennel", "Lambs_Quarters", 
-              "Partridge_Pea", "Pigweed",  "Plum_Grannet", "Ragweed", 
-                      "Rumex", "Sagebrush",  "Saltbrush", "Sedge", 
-                 "Sneezeweed", "Wild_Carrot" )
+translate <- tribble(
+  ~from, ~to,
+"Ashe Juniper / Bald Cypress",  "Ashe_JuniperOrBald_Cypress", 
+"Alnus(Alder)",                 "Alnus",
+"Black Gum",                    "Black_Gum", 
+"Black Walnut",                 "Black_Walnut", 
+"Cotton Wood",                  "Cotton_Wood",
+"Glandular Mesquite",           "Glandular_Mesquite", 
+"Osage Orange",                 "Osage_Orange", 
+"Sweet Gum",                    "Sweet_Gum", 
+"Gingko Biloba",                "Gingko_Biloba",  
+"Burweed / Marshelder",         "BurweedOrMarshelder", 
+"Dog Fennel",                   "Dog_Fennel", 
+"Lamb's Quarters",              "Lambs_Quarters", 
+"Partridge Pea",                "Partridge_Pea", 
+"Plum Grannet",                 "Plum_Grannet", 
+"Wild Carrot",                  "Wild_Carrot" 
+)
 
-#for (i in 1:nrow(url_list)){
-for (i in 1:12){
-  url <- url_list$url[i]
-  print(url)
-  filein <- paste0(url,".rds")
-  df <- readRDS(filein) %>% 
-    head(-1) %>% 
-    tail(-3)  
-  assign(paste0("df", i), df) # make dataframes for each file to see what's happening
-  
-  #   Column names change. Let's look closer
-  
-  
-  
-  
-  #  Trim out some extraneous stuff and rename columns
-  
-  df <- df[1:(length(df)-3)] 
-  df <- df[-c(25:27)]
-  names(df) <- columns
-  df <- tail(df, -1)
-  
-  #   make date column a date
-  
-  df <- df %>% 
-    mutate(Date=sprintf("%02d", as.numeric(Date))) %>% 
-    mutate(Date=ymd(paste0(url_list$year[i], url_list$month[1], Date))) 
-  
+
+map_df(list(df1, df2), clean)
+
+
+
   #saveRDS(df, filein)
-}
+
 
 
 
