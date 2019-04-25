@@ -85,32 +85,48 @@ for (url in url_list$url){
 
 keep <- url_list
 
+df1 <- readRDS(paste0(url_list[1,1], ".rds"))
+df2 <- readRDS(paste0(url_list[2,1], ".rds"))
+dftest <- readRDS(paste0(url_list[27,1],".rds"))
+
+# Read in df's from disk
+
+
+
 clean = function(data) {
 
   # Recode column names
-  names.row = grep("DATE", df1[, 1, drop=TRUE])
+  names.row = grep("DATE", data[, 1, drop=TRUE], ignore.case=TRUE)
+  data[names.row, which(is.na(data[names.row,]))] <- 
+    rep("NULL", sum(is.na(data[names.row,]))) # sometimes the variable is NA
   recode_vals = translate$to %>% set_names(translate$from)
-  old_names = unlist(df1[names.row, ][-1]) 
+  old_names = unlist(data[names.row, ][-1]) 
   names(data) = c("Date", recode(old_names, !!!recode_vals))
   
   # Get Month and Year for dates
   mon <- str_remove(data[1,]$Date, "Month:\\s*")
-  mon <- match(mon, toupper(month.name))
-  yr  <- str_remove(data[2,]$Date, "YEAR:\\s*")
+  #mon <- match(mon, toupper(month.name))
+  names.row = grep("Year", data[, 1, drop=TRUE], ignore.case=TRUE)
+  yr  <- str_remove(data[names.row,]$Date, "YEAR:\\s*|Year:\\s*")
+  #yr  <- str_remove(data[2,]$Date, "YEAR:\\s*")
 
-  # Remove Month, Year, Date and Total rows
-  data = data[!grepl("Month|YEAR|DATE|Total", data$Date), ]
+  # Remove Month, Year, Date, POLLEN, and Total rows
+  data = data[!grepl("Month|YEAR|DATE|Total|POLLEN", data$Date, ignore.case=TRUE), ]
+  data = data[!is.na(data$Date),]
   
   # Change Date column to correct dates
   data$Date = paste(yr, mon, data$Date, sep="-")
   data$Date = lubridate::ymd(data$Date)
+  data = data[!is.na(data$Date),] # for things like Feb 31
+  
+  print(data$Date[1])
   
   data
 }
 
 
 translate <- tribble(
-  ~from, ~to,
+  ~from,                        ~to,
 "Ashe Juniper / Bald Cypress",  "Ashe_JuniperOrBald_Cypress", 
 "Alnus(Alder)",                 "Alnus",
 "Black Gum",                    "Black_Gum", 
@@ -125,15 +141,32 @@ translate <- tribble(
 "Lamb's Quarters",              "Lambs_Quarters", 
 "Partridge Pea",                "Partridge_Pea", 
 "Plum Grannet",                 "Plum_Grannet", 
+"WILLOW",                       "Willow", 
+"plantago(plantain)",           "Plantago", 
+"Plantago(Plantain)",           "Plantago", 
+"Plantago(plantain)",           "Plantago", 
+"PLANTAGO",                     "Plantago", 
+"Walnut(juglans)",              "Walnut", 
+"Other weed pollen",            "Other_Weed", 
+"Other weed/unidentified",      "Other_Weed", 
+"other weed pollen",            "Other_Weed", 
+"other weed",                   "Other_Weed", 
+"Other Weed",                   "Other_Weed", 
+"OTHER WEED",                   "Other_Weed", 
+"OTHER TREE",                   "Other_Tree", 
+"Other Tree/Unidentified",      "Other_Tree", 
+"other tree pollen",            "Other_Tree", 
+"OTHER TREE POLLEN",            "Other_Tree", 
+"Other tree pollen",            "Other_Tree", 
+"Other Tree",                   "Other_Tree", 
 "Wild Carrot",                  "Wild_Carrot" 
 )
 
 
-map_df(list(df1, df2), clean)
+df <- map_df(mget(ls(pattern = "df[0-9]")), clean) %>%  
+  select(-contains("Total"), -contains("TOTAL"), -contains("Tech"))
 
-
-
-  #saveRDS(df, filein)
+saveRDS(df, "MasterPollenData.rds")
 
 
 
