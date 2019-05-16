@@ -104,10 +104,15 @@ clean = function(data) {
   names(data) = c("Date", recode(old_names, !!!recode_vals))
   
   # Get Month and Year for dates
-  mon <- str_remove(data[1,]$Date, "Month:\\s*")
+  names.col = grep("Month:", data, ignore.case=TRUE)
+  names.row = grep("Month:", data[, names.col, drop=TRUE], ignore.case=TRUE)
+  #mon <- str_remove(data[1,]$Date, "Month:\\s*")
+  mon  <- str_remove(data[names.row, names.col], "Month:\\s*|MONTH:\\s*")
+  #mon  <- str_remove(data[names.row,]$Date, "Month:\\s*|MONTH:\\s*")
   #mon <- match(mon, toupper(month.name))
-  names.row = grep("Year", data[, 1, drop=TRUE], ignore.case=TRUE)
-  yr  <- str_remove(data[names.row,]$Date, "YEAR:\\s*|Year:\\s*")
+  names.col = grep("Year:", data, ignore.case=TRUE)
+  names.row = grep("Year", data[, names.col, drop=TRUE], ignore.case=TRUE)
+  yr  <- str_remove(data[names.row, names.col], "YEAR:\\s*|Year:\\s*")
   #yr  <- str_remove(data[2,]$Date, "YEAR:\\s*")
 
   # Remove Month, Year, Date, POLLEN, and Total rows
