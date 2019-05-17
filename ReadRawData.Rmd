@@ -12,6 +12,7 @@ library("readxl") # read excel files
 library("lettercase") # fiddle with letter case
 library("lubridate") # handle dates
 library(RCurl)
+library(reshape2)
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -171,10 +172,50 @@ translate <- tribble(
 df <- map_df(mget(ls(pattern = "df[0-9]")), clean) %>%  
   select(-contains("Total"), -contains("TOTAL"), -contains("Tech"))
 
+df <- df %>% mutate_if(is.character,as.numeric)
+
 saveRDS(df, "MasterPollenData.rds")
+
+
+#df63
+#df69
+#df69new <- editData(df69)
+
+```
+
+##  start looking at data
+
+```{r look at data}
+
+
+df %>% melt(id="Date") %>% 
+  ggplot(aes(x=Date, y=value, color=variable)) + 
+  geom_line()
+
+df %>% skim()
+
+df %>% select(Date, Ash, Ashe_JuniperOrBald_Cypress, Elm, Oak, Ragweed, Cedar, Pine) %>% 
+  melt(id="Date") %>% 
+  ggplot(aes(x=Date, y=value, color=variable)) + 
+  geom_line()
+
+```
+
+##    Let's look at Oak alone
+
+```{r oak study}
+
+oak <- df %>% select(Date, Oak)
+
+# Impute missing values
+
+
+# Wrap plots by year
 
 
 
 
 ```
+
+
 
