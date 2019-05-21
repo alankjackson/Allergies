@@ -13,6 +13,8 @@ library("lettercase") # fiddle with letter case
 library("lubridate") # handle dates
 library(RCurl)
 library(reshape2)
+library(imputeTS)
+library(timetk)
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -205,10 +207,32 @@ df %>% select(Date, Ash, Ashe_JuniperOrBald_Cypress, Elm, Oak, Ragweed, Cedar, P
 
 ```{r oak study}
 
-oak <- df %>% select(Date, Oak)
+oak <- df %>% select(Date, Oak) %>% 
+  arrange(Date) %>% 
+  replace_na(list(Oak=0)) %>% 
+  mutate(Oak=ifelse(wday(Date)==1, NA, Oak),
+         Oak=ifelse(wday(Date)==7, NA, Oak))
 
+# Plot missing values by day of week
+
+
+df %>% select(Date, Oak) %>% 
+  arrange(Date) %>% 
+  mutate(dow=wday(Date)) %>% 
+  group_by(dow) %>% 
+  summarise_all(~sum(is.na(.))) %>%  
+  #mutate(nacount=nacount-min(nacount)) %>% 
+  ggplot(aes(x=dow, y=Oak)) +
+  geom_bar(stat="identity")
+
+  
 # Impute missing values
 
+oakts <- ts(oak)
+oakts <- na.kalman(oakts)
+
+oakts %>% tk_tbl() %>% ggplot(aes(x=Date, y=Oak)) +
+  geom_line()
 
 # Wrap plots by year
 
