@@ -1,0 +1,45 @@
+---
+title: "Read Weather Data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+
+path <- "~/Dropbox/Rprojects/Allergies/"
+
+infile <- "WeatherDataJan2013-Sep2019.csv"
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read CSV file
+
+Data from https://www.ncdc.noaa.gov/cdo-web/search
+
+Data for Hobby airport station - closest to Pollen gathering instrument near Astrodome
+
+```{r read data}
+
+df <- read_csv(paste0(path,infile), 
+               skip=0, 
+               col_names = TRUE) %>% 
+  select(Date=DATE, 
+         Wind=AWND, 
+         Precip=PRCP, 
+         Snow=SNOW, 
+         TAvg=TAVG, 
+         TMin=TMIN, 
+         Tmax=TMAX, 
+         WindDir=WDF2, 
+         Mist=WT13, 
+         Drizzle=WT14, 
+         Haze=WT08, 
+         MaxWind=WSF2)  
+
+  saveRDS(df, file = paste0(path, "WeatherData.rds"))
+
+
+```
+
